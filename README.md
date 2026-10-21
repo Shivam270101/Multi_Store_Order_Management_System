@@ -42,8 +42,20 @@ Dashboard amounts use Indian Rupees (INR).
    If the backend `PORT` is not `4000`, set `NEXT_PUBLIC_API_URL` in
    `frontend\.env.local` to `http://localhost:<PORT>` before starting Next.js.
    Open `http://localhost:3000`. The app opens the Create Order page. Use the
-   navigation to switch between Create Order, Orders List, and Update Status.
-   The order list and status page can be filtered by store ID.
+   navigation to switch between Create Order, Orders List, Update Status, and
+   the analytics Dashboard. The order list and status page can be filtered by
+   store ID.
+
+## Frontend pages
+
+- **Create Order** (`/create-order`): Browse the available dish catalog, which
+  displays each dish's category, name, and INR price. Select **Add** to include
+  a dish in the order; adding it again increases its quantity. The order form
+  shows an estimated total, while the API calculates the final total using the
+  current MySQL dish prices.
+- **Orders List** (`/orders`): Browse and paginate orders, filtered by store.
+- **Update Status** (`/update-status`): Change an order's status in real time.
+- **Dashboard** (`/dashboard`): Review order and revenue analytics.
 
 ## API
 
