@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="224" height="48" viewBox="0 0 224 48" fill="none">
+  <rect x="2" y="2" width="44" height="44" rx="14" fill="#234638"/>
+  <path d="M12 20.5 16.4 13h15.2l4.4 7.5v2.4a4 4 0 0 1-6.8 2.8 4 4 0 0 1-6.8 0 4 4 0 0 1-6.8 0 4 4 0 0 1-6.8-2.8v-2.4Z" fill="#B9ED73"/>
+  <path d="M13 23.2v12.3h22V23.2a4 4 0 0 1-5.8-.1 4 4 0 0 1-6.8 0 4 4 0 0 1-6.8 0 4 4 0 0 1-2.6.1Z" fill="#F7F8F5"/>
+  <path d="M20 27h8v8.5h-8z" fill="#234638"/>
+  <text x="57" y="32" fill="#1B2623" font-family="Manrope, Arial, sans-serif" font-size="25" font-weight="800" letter-spacing="-1.1">Storefront</text>
+  <circle cx="196" cy="29" r="2.5" fill="#85B34A"/>
+</svg>

@@ -95,23 +95,36 @@ router.post("/", validateBody(createOrderSchema), async (request, response, next
 
 router.get("/", async (request, response, next) => {
   const storeId = request.query.store_id?.toString().trim();
+  const status = request.query.status?.toString().trim();
   const page = Number(request.query.page ?? 1);
   const limit = Number(request.query.limit ?? 20);
+  const validStatus =
+    status === undefined || orderStatuses.some((orderStatus) => orderStatus === status);
   if (
     !Number.isSafeInteger(page) ||
     page < 1 ||
     !Number.isSafeInteger(limit) ||
     limit < 1 ||
     limit > 100 ||
-    (request.query.store_id !== undefined && !storeId)
+    (request.query.store_id !== undefined && !storeId) ||
+    (request.query.status !== undefined && !validStatus)
   ) {
-    response.status(400).json({ error: "Invalid store_id, page, or limit" });
+    response.status(400).json({ error: "Invalid store_id, status, page, or limit" });
     return;
   }
 
   try {
-    const where = storeId ? "WHERE store_id = ?" : "";
-    const parameters = storeId ? [storeId] : [];
+    const conditions: string[] = [];
+    const parameters: Array<string | number> = [];
+    if (storeId) {
+      conditions.push("store_id = ?");
+      parameters.push(storeId);
+    }
+    if (status) {
+      conditions.push("status = ?");
+      parameters.push(status);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const [countRows] = await pool.query<Array<RowDataPacket & { total: number }>>(
       `SELECT COUNT(*) AS total FROM orders ${where}`,
       parameters,

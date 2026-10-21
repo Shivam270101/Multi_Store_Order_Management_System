@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { io, type Socket } from "socket.io-client";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
@@ -52,6 +53,7 @@ export default function OrderManagement({
   view: OrderManagementView;
 }) {
   const [storeId, setStoreId] = useState("store-1");
+  const [statusFilter, setStatusFilter] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [pagination, setPagination] = useState<OrderPagination>({
@@ -78,12 +80,16 @@ export default function OrderManagement({
     const storeFilter = storeId.trim()
       ? `&store_id=${encodeURIComponent(storeId.trim())}`
       : "";
+    const orderStatusFilter =
+      (view === "orders" || view === "status") && statusFilter
+        ? `&status=${encodeURIComponent(statusFilter)}`
+        : "";
     const result = await request<{ data: Order[]; pagination: OrderPagination }>(
-      `/orders?page=${pagination.page}&limit=${pagination.limit}${storeFilter}`,
+      `/orders?page=${pagination.page}&limit=${pagination.limit}${storeFilter}${orderStatusFilter}`,
     );
     setOrders(result.data);
     setPagination(result.pagination);
-  }, [pagination.limit, pagination.page, storeId]);
+  }, [pagination.limit, pagination.page, statusFilter, storeId, view]);
 
   const refreshDishes = useCallback(async () => {
     setDishes(await request<Dish[]>("/dishes"));
@@ -135,7 +141,10 @@ export default function OrderManagement({
     };
     socket.on("connect", joinStores);
     socket.on("order:created", (order: Order) => {
-      if (!storeId.trim() || order.store_id === storeId.trim()) {
+      if (
+        (!storeId.trim() || order.store_id === storeId.trim()) &&
+        (!statusFilter || order.status === statusFilter)
+      ) {
         setPagination((current) => ({ ...current, total: current.total + 1 }));
         if (pagination.page === 1) {
           setOrders((current) => [order, ...current.filter((entry) => entry.id !== order.id)]);
@@ -146,20 +155,28 @@ export default function OrderManagement({
       void refreshAnalytics();
     });
     socket.on("order:updated", (order: Order) => {
-      setOrders((current) =>
-        current.map((entry) => (entry.id === order.id ? order : entry)),
-      );
+      if (view === "orders" || view === "status") {
+        void refreshOrders();
+      } else {
+        setOrders((current) =>
+          current.map((entry) => (entry.id === order.id ? order : entry)),
+        );
+      }
     });
     socket.on("order:deleted", ({ id }: { id: number }) => {
-      setOrders((current) => current.filter((entry) => entry.id !== id));
-      setPagination((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
+      if (view === "orders" || view === "status") {
+        void refreshOrders();
+      } else {
+        setOrders((current) => current.filter((entry) => entry.id !== id));
+        setPagination((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
+      }
     });
     joinStores();
     return () => {
       selectedStores.forEach((store) => socket.emit("store:leave", store));
       socket.disconnect();
     };
-  }, [pagination.page, refreshAnalytics, refreshOrders, storeId]);
+  }, [pagination.page, refreshAnalytics, refreshOrders, statusFilter, storeId, view]);
 
   function updateItem(index: number, field: keyof ItemDraft, value: string) {
     setItems((current) =>
@@ -341,8 +358,13 @@ export default function OrderManagement({
     <main className={`shell page-view-${view}`}>
       <header className="topbar">
         <a className="brand" href="/create-order" aria-label="Storefront home">
-          <span className="brand-mark">S</span>
-          <span>storefront<span className="brand-dot">.</span></span>
+          <Image
+            src="/storefront-logo.svg"
+            alt="Storefront"
+            width={188}
+            height={44}
+            priority
+          />
         </a>
         <nav className="main-nav" aria-label="Order management pages">
           <a className={view === "create" ? "active" : ""} href="/create-order">Create order</a>
@@ -497,7 +519,44 @@ export default function OrderManagement({
         {(view === "orders" || view === "status" || view === "dashboard") && <section className="panel orders-panel">
           <div className="section-heading">
             <div><p className="eyebrow">{view === "status" ? "ORDER STATUS" : "LIVE QUEUE"} · {storeId || "ALL STORES"}</p><h2>{view === "status" ? "Select a status to update" : "Recent orders"}</h2></div>
-            <button className="refresh-button" onClick={() => void refreshDashboard()} disabled={loading} aria-label="Refresh dashboard">↻</button>
+            <div className="orders-heading-actions">
+              {view === "dashboard" && (
+                <label className="dashboard-store-filter">
+                  <span>STORE</span>
+                  <select
+                    aria-label="Filter dashboard orders by store"
+                    value={storeId}
+                    onChange={(event) => setStoreId(event.target.value)}
+                  >
+                    <option value="">All stores</option>
+                    {["store-1", "store-2", "store-3"].map((store) => (
+                      <option key={store} value={store}>
+                        {store.replace("-", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {(view === "orders" || view === "status") && (
+                <label className="dashboard-store-filter">
+                  <span>STATUS</span>
+                  <select
+                    aria-label={`Filter ${view === "orders" ? "orders" : "status page"} by order status`}
+                    value={statusFilter}
+                    onChange={(event) => {
+                      setStatusFilter(event.target.value);
+                      setPagination((current) => ({ ...current, page: 1 }));
+                    }}
+                  >
+                    <option value="">All statuses</option>
+                    {statuses.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button className="refresh-button" onClick={() => void refreshDashboard()} disabled={loading} aria-label="Refresh dashboard">↻</button>
+            </div>
           </div>
           {loading ? <div className="empty-state">Loading orders…</div> : orders.length === 0 ? (
             <div className="empty-state">No orders for this store yet. Your next order will show up here.</div>

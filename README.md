@@ -65,7 +65,7 @@ All endpoints are served from `http://localhost:<PORT>` (default `4000`).
 | --- | --- | --- |
 | `GET` | `/health` | Check API availability |
 | `POST` | `/orders` | Create an order |
-| `GET` | `/orders?store_id=store-1&page=1&limit=20` | List orders, optionally filtered by store |
+| `GET` | `/orders?store_id=store-1&status=PREPARING&page=1&limit=20` | List orders, optionally filtered by store and status |
 | `PUT` | `/orders/:id` | Replace an order's store and items |
 | `PATCH` | `/orders/:id/status` | Update an order's status |
 | `DELETE` | `/orders/:id` | Archive an order and remove it from the active list |
@@ -92,10 +92,11 @@ are `PLACED`, `PREPARING`, and `COMPLETED`.
 
 The orders list defaults to 10 orders per page. Choose **All stores** to see
 orders from every location, or choose `store-1`, `store-2`, or `store-3` to
-filter by location. The Update Status page provides an order status control
-for every matching order. The demo seed adds 30 menu dishes and 30 sample
-orders (10 per demo store). The seed command is safe to rerun: it does not
-duplicate the sample orders.
+filter by location. The Orders List and Update Status pages also include a
+status filter for `PLACED`, `PREPARING`, and `COMPLETED`. The Update Status page
+provides a status control for every matching order. The demo seed adds 30 menu
+dishes and 30 sample orders (10 per demo store). The seed command is safe to
+rerun: it does not duplicate the sample orders.
 
 The analytics dashboard includes a 14-day demand trend, average order value,
 peak-order day, top-selling dishes, and a revenue comparison across stores.

@@ -18,9 +18,8 @@ button { cursor: pointer; }
 .main-nav { display: flex; align-items: center; gap: 6px; }
 .main-nav a { padding: 9px 11px; border-radius: 8px; color: #718075; text-decoration: none; font-size: 11px; font-weight: 600; }
 .main-nav a:hover, .main-nav a.active { background: #eaf0e5; color: var(--deep-green); }
-.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font-family: Manrope, sans-serif; font-size: 19px; font-weight: 800; letter-spacing: -1px; }
-.brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--deep-green); color: var(--green); font-size: 16px; }
-.brand-dot { color: #85b34a; }
+.brand { display: inline-flex; flex: 0 0 auto; align-items: center; text-decoration: none; }
+.brand img { display: block; width: 164px; height: auto; }
 .connection { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #68b477; box-shadow: 0 0 0 4px #e5f2e4; }
 .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; padding: 48px 0 34px; }
@@ -62,6 +61,11 @@ h1 { margin-bottom: 12px; font-family: Manrope, sans-serif; font-size: clamp(32p
 .dish-add-button { min-width: 48px; padding: 7px 9px; border: 1px solid #dfe8d6; border-radius: 7px; background: #f4f8ef; color: #53744f; font-size: 10px; font-weight: 700; }
 .dish-add-button:hover { border-color: #a7c58a; background: #eaf3df; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.orders-heading-actions { display: flex; align-items: center; gap: 9px; }
+.dashboard-store-filter { display: flex; align-items: center; gap: 7px; }
+.dashboard-store-filter > span { color: #8a958e; font-size: 9px; font-weight: 700; letter-spacing: .8px; }
+.dashboard-store-filter select { min-width: 120px; height: 33px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: #536158; font-size: 10px; }
+.dashboard-store-filter select:focus { border-color: #9dbc83; outline: 0; }
 .section-heading .eyebrow { margin-bottom: 5px; }
 h2 { margin: 0; font-family: Manrope, sans-serif; font-size: 19px; letter-spacing: -.6px; }
 .step-label { color: #a0aaa4; font-size: 10px; letter-spacing: 1px; }
@@ -175,6 +179,9 @@ footer span { padding-left: 4px; color: #83a75e; }
   .create-panel, .orders-panel, .analytics-panel, .menu-panel { padding: 17px; }
   .analytics-heading { align-items: flex-start; flex-direction: column; }
   .analytics-heading .secondary-button { width: 100%; }
+  .orders-heading-actions { align-items: flex-end; flex-direction: column; }
+  .dashboard-store-filter { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .dashboard-store-filter select { min-width: 108px; max-width: 130px; }
   .analytics-card { padding: 15px; }
   .form-footer { align-items: flex-start; flex-direction: column; }
   .pagination { align-items: flex-start; flex-direction: column; }
