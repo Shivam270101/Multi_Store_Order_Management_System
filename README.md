@@ -469,6 +469,10 @@ Potential improvements include:
 
 <img width="1901" height="910" alt="Screenshot 2026-10-22 131530" src="https://github.com/user-attachments/assets/0702a80a-6342-432e-be0e-b720889eaef6" />
 
+Pagination:
+<img width="1896" height="907" alt="image" src="https://github.com/user-attachments/assets/796b28fa-9f07-4837-9889-7d435864955d" />
+
+
 <img width="1897" height="912" alt="Screenshot 2026-10-22 131546" src="https://github.com/user-attachments/assets/a2e19a1d-00bc-46ee-bd23-70e16be3de7e" />
 
 <img width="1900" height="911" alt="Screenshot 2026-10-22 131603" src="https://github.com/user-attachments/assets/e919b20d-389c-4806-aced-798f22e37868" />
