@@ -199,7 +199,7 @@ npm install
 Ensure `frontend/.env.local` contains the correct backend URL:
 
 ```dotenv
-NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
 If you configure the backend to use another port, update this URL accordingly.
