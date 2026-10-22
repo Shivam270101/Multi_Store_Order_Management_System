@@ -463,20 +463,17 @@ Potential improvements include:
 - Production deployment with environment-specific configuration
 - API documentation using Swagger or OpenAPI
 
-## Contributing
+## UI Screenshots
 
-Contributions and suggestions are welcome.
+<img width="1897" height="912" alt="Screenshot 2026-10-22 131458" src="https://github.com/user-attachments/assets/d2cf033f-0b5c-40a6-a524-3caf074464dd" />
 
-1. Fork the repository.
-2. Create a feature branch.
-3. Commit your changes.
-4. Push the branch to your fork.
-5. Open a pull request.
+<img width="1901" height="910" alt="Screenshot 2026-10-22 131530" src="https://github.com/user-attachments/assets/0702a80a-6342-432e-be0e-b720889eaef6" />
 
-## License
+<img width="1897" height="912" alt="Screenshot 2026-10-22 131546" src="https://github.com/user-attachments/assets/a2e19a1d-00bc-46ee-bd23-70e16be3de7e" />
 
-Specify the project's license before distributing or publishing this repository. If no license has been selected, the project remains subject to the applicable default copyright rules.
+<img width="1900" height="911" alt="Screenshot 2026-10-22 131603" src="https://github.com/user-attachments/assets/e919b20d-389c-4806-aced-798f22e37868" />
 
----
+<img width="387" height="782" alt="Screenshot 2026-10-22 131632" src="https://github.com/user-attachments/assets/36f895ad-4ad7-4a48-a658-60b58a275cad" />
+
 
 **Built with Next.js, React, Express.js, Socket.IO, and MySQL.**
