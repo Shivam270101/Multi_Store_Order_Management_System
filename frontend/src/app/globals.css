@@ -21,7 +21,9 @@ button { cursor: pointer; }
 .brand { display: inline-flex; flex: 0 0 auto; align-items: center; text-decoration: none; }
 .brand img { display: block; width: 164px; height: auto; }
 .connection { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #68b477; box-shadow: 0 0 0 4px #e5f2e4; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: #d58a32; box-shadow: 0 0 0 4px #f8eddf; }
+.live-dot[data-state="connected"] { background: #68b477; box-shadow: 0 0 0 4px #e5f2e4; }
+.live-dot[data-state="disconnected"] { background: #c75b55; box-shadow: 0 0 0 4px #f7e8e6; }
 .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; padding: 48px 0 34px; }
 .eyebrow { margin: 0 0 9px; color: #84918a; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; }
 h1, h2, h3, p { margin-top: 0; }
@@ -163,7 +165,7 @@ footer span { padding-left: 4px; color: #83a75e; }
 }
 @media (max-width: 560px) {
   .shell { padding: 0 14px 20px; }
-  .topbar { height: auto; min-height: 64px; flex-wrap: wrap; padding: 10px 0; }
+  .topbar { height: auto; min-height: 64px; flex-wrap: wrap; padding: 10px 0; gap: 10px; }
   .connection { font-size: 10px; }
   .main-nav { order: 3; width: 100%; justify-content: space-between; gap: 0; }
   .main-nav a { padding: 7px 6px; font-size: 9px; }

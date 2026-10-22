@@ -8,6 +8,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 const statuses = ["PLACED", "PREPARING", "COMPLETED"] as const;
 
 type OrderStatus = (typeof statuses)[number];
+type SocketStatus = "connecting" | "connected" | "disconnected";
 type ItemDraft = {
   item_id: string;
   qty: string;
@@ -98,6 +99,7 @@ export default function OrderManagement({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [socketStatus, setSocketStatus] = useState<SocketStatus>("connecting");
   const socketRef = useRef<Socket | null>(null);
   const ordersRequestIdRef = useRef(0);
   const storeIdRef = useRef(storeId.trim());
@@ -192,11 +194,13 @@ export default function OrderManagement({
       }, 100);
     };
     const handleConnect = () => {
+      setSocketStatus("connected");
       socket.emit("stores:subscribe", storeIdRef.current || null);
       if (!socket.recovered) {
         scheduleRefresh();
       }
     };
+    const handleDisconnect = () => setSocketStatus("disconnected");
     const isSelectedStore = (eventStoreId: string) =>
       !storeIdRef.current || eventStoreId === storeIdRef.current;
     const handleOrderCreated = (order: Order) => {
@@ -216,6 +220,8 @@ export default function OrderManagement({
     };
 
     socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleDisconnect);
     socket.on("order:created", handleOrderCreated);
     socket.on("order:updated", handleOrderUpdated);
     socket.on("order:deleted", handleOrderDeleted);
@@ -224,6 +230,8 @@ export default function OrderManagement({
         clearTimeout(refreshTimer);
       }
       socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleDisconnect);
       socket.off("order:created", handleOrderCreated);
       socket.off("order:updated", handleOrderUpdated);
       socket.off("order:deleted", handleOrderDeleted);
@@ -451,7 +459,17 @@ export default function OrderManagement({
           <a className={view === "status" ? "active" : ""} href="/update-status">Update status</a>
           <a className={view === "dashboard" ? "active" : ""} href="/dashboard">Dashboard</a>
         </nav>
-        <div className="connection"><span className="live-dot" /> Live updates enabled</div>
+        <div className="connection" role="status" aria-live="polite">
+          <span
+            className="live-dot"
+            data-state={socketStatus}
+          />
+          {socketStatus === "connected"
+            ? "Live updates connected"
+            : socketStatus === "connecting"
+              ? "Connecting to live updates"
+              : "Live updates disconnected"}
+        </div>
       </header>
 
       <section className="intro">
