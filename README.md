@@ -286,10 +286,10 @@ dishes changed to another menu item must be available in the menu.
 All API endpoints are served from:
 
 ```text
-http://localhost:4000
+http://localhost:5000
 ```
 
-Replace `4000` with the configured backend port if necessary.
+Replace `5000` with the configured backend port if necessary.
 
 ### Health Check
 
