@@ -3,8 +3,12 @@ import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import { z } from "zod";
 
 import { pool } from "../config/db";
-import { getSocketServer } from "../config/socket";
-import { orderStatuses, storeRoom, type Order, type OrderItem } from "../domain/order";
+import {
+  emitOrderCreated,
+  emitOrderDeleted,
+  emitOrderUpdated,
+} from "../config/socket";
+import { orderStatuses, type Order, type OrderItem } from "../domain/order";
 import { validateBody } from "../middleware/validate";
 
 const router = Router();
@@ -26,6 +30,7 @@ const replaceOrderSchema = createOrderSchema;
 async function getPricedItems(
   connection: PoolConnection,
   requestedItems: Array<{ item_id: string; qty: number }>,
+  fallbackPrices: Map<string, number> = new Map(),
 ): Promise<OrderItem[] | null> {
   const placeholders = requestedItems.map(() => "?").join(", ");
   const [rows] = await connection.query<
@@ -38,7 +43,7 @@ async function getPricedItems(
   const prices = new Map(rows.map((row) => [row.item_id, Number(row.price)]));
   const pricedItems: OrderItem[] = [];
   for (const item of requestedItems) {
-    const unit_price = prices.get(item.item_id);
+    const unit_price = prices.get(item.item_id) ?? fallbackPrices.get(item.item_id);
     if (unit_price === undefined) {
       return null;
     }
@@ -83,7 +88,7 @@ router.post("/", validateBody(createOrderSchema), async (request, response, next
       status: "PLACED",
       created_at: new Date().toISOString(),
     };
-    getSocketServer().to(storeRoom(store_id)).emit("order:created", order);
+    emitOrderCreated(order);
     response.status(201).json(order);
   } catch (error) {
     await connection.rollback();
@@ -193,7 +198,17 @@ router.put(
         return;
       }
 
-      const items = await getPricedItems(connection, requestedItems);
+      const [existingItemRows] = await connection.execute(
+        "SELECT item_id, unit_price FROM order_items WHERE order_id = ?",
+        [id],
+      );
+      const fallbackPrices = new Map(
+        (existingItemRows as Array<{ item_id: string; unit_price: number }>).map((item) => [
+          item.item_id,
+          Number(item.unit_price),
+        ]),
+      );
+      const items = await getPricedItems(connection, requestedItems, fallbackPrices);
       if (!items) {
         await connection.rollback();
         response.status(400).json({ error: "One or more dishes are unavailable" });
@@ -232,11 +247,10 @@ router.put(
         status: updated.status,
         created_at: new Date(updated.created_at).toISOString(),
       };
-      const sockets = getSocketServer();
       if (existing.store_id !== store_id) {
-        sockets.to(storeRoom(existing.store_id)).emit("order:deleted", { id });
+        emitOrderDeleted({ id, store_id: existing.store_id });
       }
-      sockets.to(storeRoom(store_id)).emit("order:updated", order);
+      emitOrderUpdated(order);
       response.json(order);
     } catch (error) {
       await connection.rollback();
@@ -281,7 +295,7 @@ router.delete("/:id", async (request, response, next) => {
     await connection.execute("DELETE FROM orders WHERE id = ?", [id]);
     await connection.commit();
 
-    getSocketServer().to(storeRoom(order.store_id)).emit("order:deleted", { id });
+    emitOrderDeleted({ id, store_id: order.store_id });
     response.status(200).json({ id, archived: true });
   } catch (error) {
     await connection.rollback();
@@ -341,7 +355,7 @@ router.patch(
             : [{ item_id: row.item_id, qty: row.qty, unit_price: Number(row.unit_price) }],
         ),
       };
-      getSocketServer().to(storeRoom(order.store_id)).emit("order:updated", order);
+      emitOrderUpdated(order);
       response.json(order);
     } catch (error) {
       next(error);

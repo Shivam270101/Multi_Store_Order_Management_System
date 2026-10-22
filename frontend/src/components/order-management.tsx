@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { io, type Socket } from "socket.io-client";
 
@@ -8,7 +8,12 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 const statuses = ["PLACED", "PREPARING", "COMPLETED"] as const;
 
 type OrderStatus = (typeof statuses)[number];
-type ItemDraft = { item_id: string; qty: string };
+type ItemDraft = {
+  item_id: string;
+  qty: string;
+  fallbackName?: string;
+  fallbackPrice?: number;
+};
 type OrderItem = { item_id: string; qty: number; unit_price: number };
 type Dish = { item_id: string; name: string; category: string; price: number };
 type Order = {
@@ -43,6 +48,24 @@ const money = new Intl.NumberFormat("en-IN", {
   currency: "INR",
   maximumFractionDigits: 2,
 });
+
+function normalizeDishId(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function findDish(dishes: Dish[], itemId: string) {
+  const normalizedId = normalizeDishId(itemId);
+  return dishes.find((dish) => dish.item_id === itemId)
+    ?? dishes.find((dish) =>
+      normalizeDishId(dish.item_id) === normalizedId
+      || normalizeDishId(dish.name) === normalizedId,
+    );
+}
+
+function displayDishName(value: string) {
+  return value.replace(/[-_]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 const number = new Intl.NumberFormat("en-IN");
 
 export type OrderManagementView = "create" | "orders" | "status" | "dashboard";
@@ -75,6 +98,11 @@ export default function OrderManagement({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const socketRef = useRef<Socket | null>(null);
+  const ordersRequestIdRef = useRef(0);
+  const storeIdRef = useRef(storeId.trim());
+  const subscribedStoreRef = useRef(storeId.trim());
+  storeIdRef.current = storeId.trim();
 
   const refreshOrders = useCallback(async () => {
     const storeFilter = storeId.trim()
@@ -84,9 +112,13 @@ export default function OrderManagement({
       (view === "orders" || view === "status") && statusFilter
         ? `&status=${encodeURIComponent(statusFilter)}`
         : "";
+    const requestId = ++ordersRequestIdRef.current;
     const result = await request<{ data: Order[]; pagination: OrderPagination }>(
       `/orders?page=${pagination.page}&limit=${pagination.limit}${storeFilter}${orderStatusFilter}`,
     );
+    if (requestId !== ordersRequestIdRef.current) {
+      return;
+    }
     setOrders(result.data);
     setPagination(result.pagination);
   }, [pagination.limit, pagination.page, statusFilter, storeId, view]);
@@ -103,6 +135,10 @@ export default function OrderManagement({
     ]);
     setAnalytics({ ordersPerDay, revenuePerStore, topItems });
   }, []);
+  const refreshOrdersRef = useRef(refreshOrders);
+  const refreshAnalyticsRef = useRef(refreshAnalytics);
+  refreshOrdersRef.current = refreshOrders;
+  refreshAnalyticsRef.current = refreshAnalytics;
 
   const refreshDashboard = useCallback(async () => {
     setLoading(true);
@@ -132,57 +168,88 @@ export default function OrderManagement({
   }, [refreshDashboard]);
 
   useEffect(() => {
-    const socket: Socket = io(apiUrl, { reconnection: true });
-    const selectedStores = storeId.trim()
-      ? [storeId.trim()]
-      : ["store-1", "store-2", "store-3"];
-    const joinStores = () => {
-      selectedStores.forEach((store) => socket.emit("store:join", store));
+    const socket: Socket = io(apiUrl, {
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1_000,
+      reconnectionDelayMax: 10_000,
+    });
+    socketRef.current = socket;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleRefresh = () => {
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+      refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        void Promise.all([
+          refreshOrdersRef.current(),
+          refreshAnalyticsRef.current(),
+        ]).catch((error: unknown) => {
+          setMessage(error instanceof Error ? error.message : "Could not refresh live data");
+        });
+      }, 100);
     };
-    socket.on("connect", joinStores);
-    socket.on("order:created", (order: Order) => {
-      if (
-        (!storeId.trim() || order.store_id === storeId.trim()) &&
-        (!statusFilter || order.status === statusFilter)
-      ) {
-        setPagination((current) => ({ ...current, total: current.total + 1 }));
-        if (pagination.page === 1) {
-          setOrders((current) => [order, ...current.filter((entry) => entry.id !== order.id)]);
-        } else {
-          void refreshOrders();
-        }
+    const handleConnect = () => {
+      socket.emit("stores:subscribe", storeIdRef.current || null);
+      if (!socket.recovered) {
+        scheduleRefresh();
       }
-      void refreshAnalytics();
-    });
-    socket.on("order:updated", (order: Order) => {
-      if (view === "orders" || view === "status") {
-        void refreshOrders();
-      } else {
-        setOrders((current) =>
-          current.map((entry) => (entry.id === order.id ? order : entry)),
-        );
+    };
+    const isSelectedStore = (eventStoreId: string) =>
+      !storeIdRef.current || eventStoreId === storeIdRef.current;
+    const handleOrderCreated = (order: Order) => {
+      if (isSelectedStore(order.store_id)) {
+        scheduleRefresh();
       }
-    });
-    socket.on("order:deleted", ({ id }: { id: number }) => {
-      if (view === "orders" || view === "status") {
-        void refreshOrders();
-      } else {
-        setOrders((current) => current.filter((entry) => entry.id !== id));
-        setPagination((current) => ({ ...current, total: Math.max(0, current.total - 1) }));
+    };
+    const handleOrderUpdated = (order: Order) => {
+      if (isSelectedStore(order.store_id)) {
+        scheduleRefresh();
       }
-    });
-    joinStores();
+    };
+    const handleOrderDeleted = (order: { id: number; store_id: string }) => {
+      if (isSelectedStore(order.store_id)) {
+        scheduleRefresh();
+      }
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("order:created", handleOrderCreated);
+    socket.on("order:updated", handleOrderUpdated);
+    socket.on("order:deleted", handleOrderDeleted);
     return () => {
-      selectedStores.forEach((store) => socket.emit("store:leave", store));
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+      socket.off("connect", handleConnect);
+      socket.off("order:created", handleOrderCreated);
+      socket.off("order:updated", handleOrderUpdated);
+      socket.off("order:deleted", handleOrderDeleted);
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [pagination.page, refreshAnalytics, refreshOrders, statusFilter, storeId, view]);
+  }, []);
+
+  useEffect(() => {
+    const selectedStore = storeId.trim();
+    if (subscribedStoreRef.current === selectedStore) {
+      return;
+    }
+    subscribedStoreRef.current = selectedStore;
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("stores:subscribe", selectedStore || null);
+    }
+  }, [storeId]);
 
   function updateItem(index: number, field: keyof ItemDraft, value: string) {
     setItems((current) =>
       current.map((item, itemIndex) =>
         itemIndex === index
-          ? { ...item, [field]: value }
+          ? field === "item_id"
+            ? { ...item, item_id: value, fallbackName: undefined, fallbackPrice: undefined }
+            : { ...item, [field]: value }
           : item,
       ),
     );
@@ -209,8 +276,10 @@ export default function OrderManagement({
     setEditingOrderId(order.id);
     setItems(
       order.items.map((item) => ({
-        item_id: item.item_id,
+        item_id: findDish(dishes, item.item_id)?.item_id ?? item.item_id,
         qty: String(item.qty),
+        fallbackName: displayDishName(item.item_id),
+        fallbackPrice: Number(item.unit_price),
       })),
     );
     setEditingStoreId(order.store_id);
@@ -227,25 +296,35 @@ export default function OrderManagement({
     setBusy(true);
     setMessage("");
     try {
-      await request<Order>(
+      const savedOrder = await request<Order>(
         editingOrderId === null ? "/orders" : `/orders/${editingOrderId}`,
         {
-        method: editingOrderId === null ? "POST" : "PUT",
-        body: JSON.stringify({
-          store_id: editingOrderId === null ? storeId.trim() : editingStoreId,
-          items: items.map((item) => ({
-            item_id: item.item_id.trim(),
-            qty: Number(item.qty),
-          })),
-        }),
+          method: editingOrderId === null ? "POST" : "PUT",
+          body: JSON.stringify({
+            store_id: editingOrderId === null ? storeId.trim() : editingStoreId,
+            items: items.map((item) => ({
+              item_id: item.item_id.trim(),
+              qty: Number(item.qty),
+            })),
+          }),
         },
       );
       const wasEditing = editingOrderId !== null;
+      if (wasEditing) {
+        ordersRequestIdRef.current += 1;
+        setOrders((current) =>
+          current.map((order) => order.id === savedOrder.id ? savedOrder : order),
+        );
+      }
       setEditingOrderId(null);
       setEditingStoreId("");
       setItems([{ item_id: "", qty: "1" }]);
       setMessage(wasEditing ? "Order changes saved." : "Order placed successfully.");
-      await refreshDashboard();
+      if (wasEditing) {
+        await refreshAnalytics();
+      } else {
+        await refreshDashboard();
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not create order");
     } finally {
@@ -350,7 +429,7 @@ export default function OrderManagement({
       ? Number(revenue?.total_revenue ?? 0) / Number(revenue?.order_count)
       : 0;
   const draftTotal = items.reduce((total, item) => {
-    const dishPrice = dishes.find((dish) => dish.item_id === item.item_id)?.price ?? 0;
+    const dishPrice = findDish(dishes, item.item_id)?.price ?? item.fallbackPrice ?? 0;
     return total + dishPrice * (Number(item.qty) || 0);
   }, 0);
 
@@ -485,6 +564,11 @@ export default function OrderManagement({
                     required
                   >
                     <option value="">Choose a dish</option>
+                    {item.item_id && !findDish(dishes, item.item_id) && (
+                      <option value={item.item_id}>
+                        {item.fallbackName ?? displayDishName(item.item_id)} · {money.format(item.fallbackPrice ?? 0)}
+                      </option>
+                    )}
                     {dishes.map((dish) => (
                       <option key={dish.item_id} value={dish.item_id}>
                         {dish.name} · {money.format(dish.price)}
@@ -566,7 +650,7 @@ export default function OrderManagement({
                 <article className="order-row" key={order.id}>
                   <div className="order-main">
                     <div className="order-title"><strong>Order #{order.id}</strong><span>{order.store_id} · {new Date(order.created_at).toLocaleString()}</span></div>
-                    <p>{order.items.map((item) => `${item.qty} × ${dishes.find((dish) => dish.item_id === item.item_id)?.name ?? item.item_id}`).join(" · ")}</p>
+                    <p>{order.items.map((item) => `${item.qty} × ${findDish(dishes, item.item_id)?.name ?? displayDishName(item.item_id)}`).join(" · ")}</p>
                   </div>
                   <div className="order-side">
                     <strong>{money.format(Number(order.total_amount))}</strong>

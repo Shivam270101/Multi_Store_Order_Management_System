@@ -94,18 +94,25 @@ The orders list defaults to 10 orders per page. Choose **All stores** to see
 orders from every location, or choose `store-1`, `store-2`, or `store-3` to
 filter by location. The Orders List and Update Status pages also include a
 status filter for `PLACED`, `PREPARING`, and `COMPLETED`. The Update Status page
-provides a status control for every matching order. The demo seed adds 30 menu
-dishes and 30 sample orders (10 per demo store). The seed command is safe to
-rerun: it does not duplicate the sample orders.
+provides a status control for every matching order. The demo seed adds 32 menu
+dishes, including Chole Bhature at ₹12 and Pav Bhaji at ₹120, and 30 sample
+orders (10 per demo store). The seed command is safe to rerun: it does not
+duplicate the sample orders.
 
 The analytics dashboard includes a 14-day demand trend, average order value,
 peak-order day, top-selling dishes, and a revenue comparison across stores.
 
 ## Real-time events
 
-Clients join a store room by emitting `store:join` with the store ID. The server
-emits `order:created`, `order:updated`, and `order:deleted` to that store's room.
-Emit `store:leave` to leave a room. Socket.IO reconnect is enabled by the frontend.
+Clients subscribe to one store by emitting `stores:subscribe` with its ID, or to
+all stores by emitting `stores:subscribe` with `null`. The server replaces any
+previous store subscription and sends `order:created`, `order:updated`, and
+`order:deleted` events only to the relevant store room or the all-stores room.
+Deleted-order events include both `id` and `store_id`. The older `store:join`
+and `store:leave` events remain supported. The frontend reconnects indefinitely,
+re-subscribes after reconnecting, and refreshes live data if the connection
+cannot recover missed events. Socket.IO connection-state recovery retains rooms
+and replays missed events for interruptions up to two minutes.
 
 ## Database
 

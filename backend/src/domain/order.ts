@@ -17,6 +17,13 @@ export interface Order {
   created_at: string;
 }
 
+export interface DeletedOrder {
+  id: number;
+  store_id: string;
+}
+
+export const allStoresRoom = "stores:all";
+
 export function storeRoom(storeId: string): string {
   return `store:${storeId}`;
 }

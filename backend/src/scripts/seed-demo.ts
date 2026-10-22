@@ -34,6 +34,8 @@ const dishes = [
   ["ice-cream", "Vanilla Bean Ice Cream", "Desserts", 4.25],
   ["lemonade", "Fresh Lemonade", "Drinks", 3.5],
   ["iced-tea", "Peach Iced Tea", "Drinks", 3.25],
+  ["chole-bhature", "Chole Bhature", "Indian", 12],
+  ["pav-bhaji", "Pav Bhaji", "Indian", 120],
 ] as const;
 
 const statuses: OrderStatus[] = ["PLACED", "PREPARING", "COMPLETED"];
@@ -52,6 +54,10 @@ async function seedDemoData() {
         [itemId, name, category, price],
       );
     }
+    await connection.execute(
+      "UPDATE dishes SET available = TRUE WHERE item_id IN (?, ?)",
+      ["chole-bhature", "pav-bhaji"],
+    );
 
     const [existing] = await connection.execute(
       "SELECT seed_key FROM demo_seed_runs WHERE seed_key = ? FOR UPDATE",
