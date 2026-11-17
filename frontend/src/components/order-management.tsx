@@ -454,10 +454,11 @@ export default function OrderManagement({
           />
         </a>
         <nav className="main-nav" aria-label="Order management pages">
+          <a className={view === "dashboard" ? "active" : ""} href="/dashboard">Dashboard</a>
           <a className={view === "create" ? "active" : ""} href="/create-order">Create order</a>
           <a className={view === "orders" ? "active" : ""} href="/orders">Orders list</a>
           <a className={view === "status" ? "active" : ""} href="/update-status">Update status</a>
-          <a className={view === "dashboard" ? "active" : ""} href="/dashboard">Dashboard</a>
+          
         </nav>
         <div className="connection" role="status" aria-live="polite">
           <span

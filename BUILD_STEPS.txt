@@ -1,0 +1,187 @@
+MULTI-STORE ORDER MANAGEMENT SYSTEM
+Build and Run Walkthrough (Frontend and Backend)
+================================================
+
+This guide explains how the project is assembled and how to run it locally.
+The frontend is a Next.js/React application. The backend is an Express and
+Socket.IO API written in TypeScript. Both use MySQL for persistent data.
+
+
+1. PREREQUISITES
+----------------
+
+Install:
+  - Node.js 20 or newer (npm is included)
+  - MySQL 8.0 or newer, running locally
+  - Git (if cloning the repository)
+
+Open PowerShell in the project root, the folder containing the backend and
+frontend directories. Confirm the tools are available:
+
+  node --version
+  npm --version
+  mysql --version
+
+
+2. PREPARE THE MYSQL DATABASE
+-----------------------------
+
+The backend schema script creates the multi_store_orders database and the
+tables used by the application. First, connect to MySQL as an administrator
+and create the database and a dedicated application user:
+
+  CREATE DATABASE multi_store_orders;
+  CREATE USER 'order_app'@'localhost' IDENTIFIED BY 'choose_a_password';
+  GRANT ALL PRIVILEGES ON multi_store_orders.* TO 'order_app'@'localhost';
+
+The schema initializer also contains a CREATE DATABASE IF NOT EXISTS
+statement, so the database can be created ahead of time as shown. Do not commit
+real database passwords to the repository.
+
+
+3. CONFIGURE AND BUILD THE BACKEND
+----------------------------------
+
+In a PowerShell terminal at the project root, create the backend environment
+file from its example:
+
+  Copy-Item backend\.env.example backend\.env
+
+Edit backend\.env. For the default local setup, use values like:
+
+  PORT=4000
+  FRONTEND_URL=http://localhost:3000
+  DB_HOST=localhost
+  DB_PORT=3306
+  DB_USER=order_app
+  DB_PASSWORD=choose_a_password
+  DB_NAME=multi_store_orders
+
+The frontend's NEXT_PUBLIC_API_URL must use the same host and port as PORT.
+For example, if PORT is set to 5000, set NEXT_PUBLIC_API_URL to
+http://localhost:5000 in frontend\.env.local.
+
+Install backend dependencies and compile the TypeScript:
+
+  Set-Location backend
+  npm ci
+  npm run build
+
+The build command runs the TypeScript compiler and writes compiled JavaScript
+to backend\dist. It does not start the server.
+
+
+4. CREATE TABLES AND OPTIONAL DEMO DATA
+---------------------------------------
+
+From the backend directory:
+
+  npm run db:init
+
+This runs the SQL schema in backend\sql\schema.sql and creates the database
+tables. To add the menu and sample orders for a local demo, run:
+
+  npm run db:seed
+
+Seeding is optional. The seed script populates dish data and inserts its sample
+orders only once.
+
+
+5. CONFIGURE AND BUILD THE FRONTEND
+-----------------------------------
+
+Open a second PowerShell terminal at the project root and create the frontend
+environment file:
+
+  Copy-Item frontend\.env.example frontend\.env.local
+
+Confirm frontend\.env.local points at the backend. With the example backend
+settings above, it should contain:
+
+  NEXT_PUBLIC_API_URL=http://localhost:4000
+
+Install frontend dependencies and compile the production app:
+
+  Set-Location frontend
+  npm ci
+  npm run build
+
+The Next.js production build is generated in frontend\.next. The lint script
+in this project runs the TypeScript type check:
+
+  npm run lint
+
+
+6. RUN LOCALLY IN DEVELOPMENT
+-----------------------------
+
+Use two terminals, leaving both processes running.
+
+Terminal 1 - backend (from the project root):
+  Set-Location backend
+  npm run dev
+
+The API and Socket.IO server use PORT from backend\.env (4000 in the example).
+Check the health endpoint in a browser:
+
+  http://localhost:4000/health
+
+It should return JSON with status "ok".
+
+Terminal 2 - frontend (from the project root):
+  Set-Location frontend
+  npm run dev
+
+Open:
+
+  http://localhost:3000
+
+The home page redirects to the Create Order screen. Other available screens
+include order listing, status updates, and the analytics dashboard.
+
+
+7. RUN THE PRODUCTION BUILDS
+----------------------------
+
+Build each application first, as described in sections 3 and 5. Then start the
+backend from its directory:
+
+  npm start
+
+Start the frontend in a separate terminal from its directory:
+
+  npm start
+
+The backend listens on its configured PORT. Next.js production mode defaults
+to port 3000; set a different port with the PORT environment variable if
+needed. Keep the backend PORT, backend FRONTEND_URL, and frontend
+NEXT_PUBLIC_API_URL consistent with the ports and browser origin you use.
+
+
+8. HOW THE APPLICATION FITS TOGETHER
+------------------------------------
+
+1. The browser loads the Next.js frontend and the page components render the
+   order creation, orders, status, and dashboard views.
+2. The shared order-management component calls the Express API using
+   NEXT_PUBLIC_API_URL.
+3. Express routes handle orders, dishes, archiving, and analytics. The backend
+   validates requests and uses its MySQL connection pool to read or update
+   application data.
+4. MySQL stores dishes, orders, order items, archived orders, and seed history.
+5. Socket.IO provides real-time order-created, order-updated, and order-deleted
+   notifications between the backend and connected frontend clients.
+
+
+9. COMMON CHECKS
+----------------
+
+- If the frontend cannot reach the API, check that the backend is running and
+  NEXT_PUBLIC_API_URL has the same port as backend PORT.
+- If the browser reports a cross-origin error, set backend FRONTEND_URL to the
+  frontend's browser origin (normally http://localhost:3000), then restart the
+  backend.
+- If database initialization or API requests fail, check that MySQL is running
+  and the DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, and DB_NAME values are correct.
+- If dependencies are not installed yet, run npm ci separately in both the
+  backend and frontend directories.
